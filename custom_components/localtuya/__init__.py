@@ -207,9 +207,8 @@ async def async_migrate_entry(hass, config_entry: ConfigEntry):
                 config_entry.data[CONF_DEVICE_ID]: config_entry.data.copy()
             }
             new_data[ATTR_UPDATED_AT] = str(int(time.time() * 1000))
-            config_entry.version = new_version
             hass.config_entries.async_update_entry(
-                config_entry, title=DOMAIN, data=new_data
+                config_entry, title=DOMAIN, data=new_data, version=new_version
             )
         else:
             _LOGGER.debug(
