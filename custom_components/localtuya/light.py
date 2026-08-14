@@ -171,8 +171,8 @@ class LocaltuyaLight(LocalTuyaEntity, LightEntity):
             CONF_BRIGHTNESS_UPPER, DEFAULT_UPPER_BRIGHTNESS
         )
         self._upper_color_temp = self._upper_brightness
-        self._min_kelvin = self._config.get(CONF_COLOR_TEMP_MIN_KELVIN, DEFAULT_MIN_KELVIN)
-        self._max_kelvin = self._config.get(CONF_COLOR_TEMP_MAX_KELVIN, DEFAULT_MAX_KELVIN)
+        self._min_kelvin = int(self._config.get(CONF_COLOR_TEMP_MIN_KELVIN, DEFAULT_MIN_KELVIN))
+        self._max_kelvin = int(self._config.get(CONF_COLOR_TEMP_MAX_KELVIN, DEFAULT_MAX_KELVIN))
         self._color_temp_reverse = self._config.get(
             CONF_COLOR_TEMP_REVERSE, DEFAULT_COLOR_TEMP_REVERSE
         )

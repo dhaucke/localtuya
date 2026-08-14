@@ -1,4 +1,41 @@
-![logo](https://github.com/rospogrigio/localtuya-homeassistant/blob/master/img/logo-small.png)
+![LocalTuya Integration für Home Assistant](https://raw.githubusercontent.com/dhaucke/localtuya/master/assets/localtuya-banner.png)
+
+# LocalTuya
+
+**Tuya-Geräte lokal in Home Assistant steuern — ohne Cloud-Abhängigkeit im Betrieb.**
+
+[![Release](https://img.shields.io/github/v/release/dhaucke/localtuya?style=flat-square)](https://github.com/dhaucke/localtuya/releases/latest)
+[![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5?style=flat-square)](https://github.com/hacs/integration)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Custom%20Integration-18BCF2?style=flat-square)](https://www.home-assistant.io/)
+[![License](https://img.shields.io/github/license/dhaucke/localtuya?style=flat-square)](https://github.com/dhaucke/localtuya/blob/master/LICENSE)
+
+[Mit HACS installieren](https://my.home-assistant.io/redirect/hacs_repository/?owner=dhaucke&repository=localtuya&category=integration) · [Problem melden](https://github.com/dhaucke/localtuya/issues)
+
+**Sprache:** [Deutsch](#warum-dieser-fork-existiert) · [English](#why-this-fork-exists)
+
+## Warum dieser Fork existiert
+
+Dies ist ein Fork von [rospogrigio/localtuya](https://github.com/rospogrigio/localtuya). Das Original ist ein großes, aktives Projekt (3900+ ⭐), aber etliche saubere, von der Community eingereichte Fixes für echte, reproduzierbare Bugs liegen seit Monaten ungemergt herum. Dieser Fork übernimmt die am besten belegten davon:
+
+- **Thread-Safety-Crash**: `async_dispatcher_send` wurde nicht-threadsicher aufgerufen — auf HA 2026.x ein harter `RuntimeError`, der Entities beim Start crashen lässt ([mehrfach gemeldet](https://github.com/rospogrigio/localtuya/issues/2185)).
+- **Kaputte Farbtemperatur seit HA 2026.3**: HA hat die alte mired-basierte Licht-API komplett entfernt — LocalTuya reagierte danach auf keine Farbtemperatur-Befehle mehr ([21 Bestätigungen](https://github.com/rospogrigio/localtuya/issues/2182)). Fork migriert vollständig auf Kelvin.
+- **UDP-Discovery-Crash**: kaputte/fremde Broadcasts auf Port 6666/6667 ließen die Discovery mit unbehandelten Exceptions ins Log fluten.
+- **Config-Flow-Absturz** beim Hinzufügen neuer Geräte (`IndexError`), Config-Entry-Migration inkompatibel mit HA 2026.7.0, Climate-Crash bei unvollständigen Status-Updates, und ein Protokoll-Race, bei dem eine `TuyaMessage` fälschlich als Semaphore behandelt wurde und HA fatal abstürzen ließ.
+
+Ansonsten unverändert gegenüber dem Original — alle Geräte-Typen, die Cloud-API-Integration und die Konfiguration funktionieren wie unten beschrieben.
+
+## Why this fork exists
+
+This is a fork of [rospogrigio/localtuya](https://github.com/rospogrigio/localtuya). The original is a large, active project (3900+ stars), but several clean, community-submitted fixes for real, reproducible bugs have sat unmerged for months. This fork adopts the best-evidenced ones:
+
+- **Thread-safety crash**: `async_dispatcher_send` was called non-thread-safely — on HA 2026.x this is now a hard `RuntimeError` that crashes entities on startup ([reported repeatedly](https://github.com/rospogrigio/localtuya/issues/2185)).
+- **Broken color temperature since HA 2026.3**: HA removed the old mired-based light API entirely — LocalTuya stopped responding to color-temperature commands ([21 confirmations](https://github.com/rospogrigio/localtuya/issues/2182)). Fork migrates fully to kelvin.
+- **UDP discovery crash**: malformed/foreign broadcasts on ports 6666/6667 flooded the log with unhandled exceptions.
+- **Config-flow crash** when adding new devices (`IndexError`), config-entry migration incompatible with HA 2026.7.0, a climate crash on partial status updates, and a protocol race where a `TuyaMessage` got mistaken for a semaphore and fatally crashed HA.
+
+Otherwise unchanged from upstream — all device types, the cloud API integration, and configuration work as described below.
+
+---
 
 A Home Assistant custom Integration for local handling of Tuya-based devices.
 
