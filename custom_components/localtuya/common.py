@@ -86,21 +86,32 @@ async def async_setup_entry(
 
             dps_config_fields = list(get_dps_for_platform(flow_schema))
 
+            dev_entities = []
             for entity_config in entities_to_setup:
                 # Add DPS used by this platform to the request list
                 for dp_conf in dps_config_fields:
                     if dp_conf in entity_config:
                         tuyainterface.dps_to_request[entity_config[dp_conf]] = None
 
-                entities.append(
+                dev_entities.append(
                     entity_class(
                         tuyainterface,
                         dev_entry,
                         entity_config[CONF_ID],
                     )
                 )
-    # Once the entities have been created, add to the TuyaDevice instance
-    tuyainterface.add_entities(entities)
+            # Add to the TuyaDevice instance per-device: calling this once
+            # after the loop with the accumulated cross-device list (as
+            # before) only ran for whichever device happened to be last in
+            # iteration order - every other device's entities never got
+            # registered on their own TuyaDevice, so
+            # restore_state_when_connected() never fired for them on
+            # reconnect, and setups with zero matching entities anywhere
+            # (e.g. no user-configured sensor, only an auto-added one)
+            # crashed with UnboundLocalError on tuyainterface.
+            tuyainterface.add_entities(dev_entities)
+            entities.extend(dev_entities)
+
     async_add_entities(entities)
 
 
@@ -111,11 +122,20 @@ def get_dps_for_platform(flow_schema):
             yield key.schema
 
 
-def get_entity_config(config_entry, dp_id):
-    """Return entity config for a given DPS id."""
+def get_entity_config(config_entry, dp_id, default_config=None):
+    """Return entity config for a given DPS id.
+
+    Some entities are synthesized rather than user-configured (e.g. the
+    battery sensor auto-added for a vacuum's battery_dp - see
+    LocaltuyaBatterySensor in sensor.py) and have no matching
+    CONF_ENTITIES entry. Callers for those pass default_config instead
+    of relying on one being found.
+    """
     for entity in config_entry[CONF_ENTITIES]:
         if entity[CONF_ID] == dp_id:
             return entity
+    if default_config is not None:
+        return default_config
     raise Exception(f"missing entity config for id {dp_id}")
 
 
@@ -373,12 +393,12 @@ class TuyaDevice(pytuya.TuyaListener, pytuya.ContextualLogger):
 class LocalTuyaEntity(RestoreEntity, pytuya.ContextualLogger):
     """Representation of a Tuya entity."""
 
-    def __init__(self, device, config_entry, dp_id, logger, **kwargs):
+    def __init__(self, device, config_entry, dp_id, logger, default_config=None, **kwargs):
         """Initialize the Tuya entity."""
         super().__init__()
         self._device = device
         self._dev_config_entry = config_entry
-        self._config = get_entity_config(config_entry, dp_id)
+        self._config = get_entity_config(config_entry, dp_id, default_config)
         self._dp_id = dp_id
         self._status = {}
         self._state = None

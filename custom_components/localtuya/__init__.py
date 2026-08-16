@@ -33,6 +33,7 @@ from .common import TuyaDevice, async_config_entry_by_device_id
 from .config_flow import ENTRIES_VERSION, config_schema
 from .const import (
     ATTR_UPDATED_AT,
+    CONF_BATTERY_DP,
     CONF_NO_CLOUD,
     CONF_PRODUCT_KEY,
     CONF_USER_ID,
@@ -53,6 +54,24 @@ CONFIG_SCHEMA = config_schema()
 
 CONF_DP = "dp"
 CONF_VALUE = "value"
+
+
+def _platforms_for_entities(entities):
+    """Return the HA platforms needed to represent the given entity configs.
+
+    Normally this is just the configured CONF_PLATFORM values. A vacuum
+    entity with a battery_dp also needs the "sensor" platform for its
+    auto-added battery sensor (see LocaltuyaBatterySensor in sensor.py),
+    even when the device has no separately configured sensor entity -
+    HA 2026.8 removed VacuumEntity.battery_level entirely.
+    """
+    platforms = set(entity[CONF_PLATFORM] for entity in entities)
+    if any(
+        entity[CONF_PLATFORM] == "vacuum" and entity.get(CONF_BATTERY_DP)
+        for entity in entities
+    ):
+        platforms.add("sensor")
+    return platforms
 
 SERVICE_SET_DP = "set_dp"
 SERVICE_SET_DP_SCHEMA = vol.Schema(
@@ -265,9 +284,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     platforms = set()
     for dev_id in entry.data[CONF_DEVICES].keys():
         entities = entry.data[CONF_DEVICES][dev_id][CONF_ENTITIES]
-        platforms = platforms.union(
-            set(entity[CONF_PLATFORM] for entity in entities)
-        )
+        platforms = platforms.union(_platforms_for_entities(entities))
         hass.data[DOMAIN][TUYA_DEVICES][dev_id] = TuyaDevice(hass, entry, dev_id)
 
     # Setup all platforms at once, letting HA handling each platform and avoiding
@@ -293,8 +310,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     platforms = {}
 
     for dev_id, dev_entry in entry.data[CONF_DEVICES].items():
-        for entity in dev_entry[CONF_ENTITIES]:
-            platforms[entity[CONF_PLATFORM]] = True
+        for platform in _platforms_for_entities(dev_entry[CONF_ENTITIES]):
+            platforms[platform] = True
 
     unload_ok = all(
         await asyncio.gather(
