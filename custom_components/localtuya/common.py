@@ -177,7 +177,11 @@ class TuyaDevice(pytuya.TuyaListener, pytuya.ContextualLogger):
             for reset_id in reset_ids_str:
                 self._default_reset_dpids.append(int(reset_id.strip()))
 
-        self.set_logger(_LOGGER, self._dev_config_entry[CONF_DEVICE_ID])
+        self.set_logger(
+            _LOGGER,
+            self._dev_config_entry[CONF_DEVICE_ID],
+            self._dev_config_entry.get(CONF_ENABLE_DEBUG, False),
+        )
 
         # This has to be done in case the device type is type_0d
         for entity in self._dev_config_entry[CONF_ENTITIES]:
@@ -415,7 +419,11 @@ class LocalTuyaEntity(RestoreEntity, pytuya.ContextualLogger):
         self._restore_on_reconnect = (
             self._config.get(CONF_RESTORE_ON_RECONNECT) or False
         )
-        self.set_logger(logger, self._dev_config_entry[CONF_DEVICE_ID])
+        self.set_logger(
+            logger,
+            self._dev_config_entry[CONF_DEVICE_ID],
+            self._dev_config_entry.get(CONF_ENABLE_DEBUG, False),
+        )
 
     async def async_added_to_hass(self):
         """Subscribe localtuya events."""
