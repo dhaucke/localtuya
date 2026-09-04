@@ -445,6 +445,17 @@ class LocalTuyaEntity(RestoreEntity, pytuya.ContextualLogger):
             async_dispatcher_connect(self.hass, signal, _update_handler)
         )
 
+        # The device connects and fetches its one-time initial status
+        # independently of entity setup, and only ever dispatches that
+        # status once (nothing re-polls afterwards, see TuyaDevice) - if
+        # this entity's async_added_to_hass() runs after that dispatch
+        # already fired, the subscription above is too late to catch it
+        # and every attribute stays None until the device happens to push
+        # an update on its own (e.g. someone changes it from another app).
+        # Catch up on whatever the device already has cached right now.
+        if self._device._status:
+            _update_handler(self._device._status)
+
         signal = f"localtuya_entity_{self._dev_config_entry[CONF_DEVICE_ID]}"
         async_dispatcher_send(self.hass, signal, self.entity_id)
 
