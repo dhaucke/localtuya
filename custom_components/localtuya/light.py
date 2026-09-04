@@ -375,9 +375,12 @@ class LocaltuyaLight(LocalTuyaEntity, LightEntity):
 
     async def async_turn_on(self, **kwargs):
         """Turn on or control the light."""
-        states = {}
-        if not self.is_on:
-            states[self._dp_id] = True
+        # Always send the power-on DP, don't gate it on cached is_on: if
+        # HA's cached state is stale (e.g. after a dropped connection), the
+        # old `if not self.is_on` guard silently skipped it, so pressing
+        # "on" sent an empty/no-op command while "off" (unconditional in
+        # async_turn_off) still worked - looked like "on" was broken.
+        states = {self._dp_id: True}
         features = self.supported_features
         brightness = None
         if ATTR_EFFECT in kwargs and (features & LightEntityFeature.EFFECT):
