@@ -13,3 +13,21 @@ set_dp:
     value:
       description: New value to set
       example: False
+
+set_custom_scene:
+  description: Push a custom multi-color scene to a light, built from the device's native scene_data format.
+  target:
+    entity:
+      domain: light
+  fields:
+    colors:
+      description: List of 1-8 [hue, saturation, value] stops. hue 0-360, saturation/value 0-1000 (saturation 0 = white).
+      example: "[[0, 1000, 1000], [120, 1000, 1000], [240, 1000, 1000]]"
+    speed:
+      description: Transition speed 0 (slowest) to 100 (fastest). This is a device speed value, not a duration - higher plays faster.
+      example: 10
+      default: 50
+    smooth:
+      description: Fade smoothly between stops (true) or hard-cut (false).
+      example: true
+      default: true

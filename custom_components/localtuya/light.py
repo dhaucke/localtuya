@@ -17,8 +17,10 @@ from homeassistant.components.light import (
     ColorMode,
 )
 from homeassistant.const import CONF_BRIGHTNESS, CONF_COLOR_TEMP, CONF_SCENE
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import entity_platform
 
-from .common import LocalTuyaEntity, async_setup_entry
+from .common import LocalTuyaEntity, async_setup_entry as _base_async_setup_entry
 from .const import (
     CONF_BRIGHTNESS_LOWER,
     CONF_BRIGHTNESS_UPPER,
@@ -254,10 +256,8 @@ class LocaltuyaLight(LocalTuyaEntity, LightEntity):
     @property
     def effect_list(self):
         """Return the list of supported effects for this light."""
-        if self.is_scene_mode or self.is_music_mode:
-            return self._effect
-        elif (color_mode := self.__get_color_mode()) in self._scenes.values():
-            return self.__find_scene_by_scene_data(color_mode)
+        if self.is_scene_mode or self.is_music_mode or self.__get_color_mode() in self._scenes.values():
+            return self._effect_list
         return None
 
     @property
@@ -349,6 +349,28 @@ class LocaltuyaLight(LocalTuyaEntity, LightEntity):
             self.dps_conf(CONF_COLOR_MODE)
             if self.has_config(CONF_COLOR_MODE)
             else self._modes.white
+        )
+
+    async def async_set_custom_scene(self, colors, speed=50, smooth=True):
+        """Build and push a custom multi-stop color scene.
+
+        colors: list of [hue 0-360, saturation 0-1000, value 0-1000] stops.
+        speed: 0-100 - a device speed, not a duration: higher plays faster.
+        """
+        if not (self.has_config(CONF_SCENE) and self.has_config(CONF_COLOR_MODE)):
+            raise HomeAssistantError(
+                f"{self.entity_id} has no scene datapoint configured"
+            )
+        mode = "02" if smooth else "01"
+        units = "".join(
+            f"{speed:02x}{speed:02x}{mode}{h:04x}{s:04x}{v:04x}00000000"
+            for h, s, v in colors
+        )
+        await self._device.set_dps(
+            {
+                self._config.get(CONF_COLOR_MODE): MODE_SCENE,
+                self._config.get(CONF_SCENE): f"05{units}",
+            }
         )
 
     async def async_turn_on(self, **kwargs):
@@ -505,4 +527,24 @@ class LocaltuyaLight(LocalTuyaEntity, LightEntity):
             self._effect = SCENE_MUSIC
 
 
-async_setup_entry = partial(async_setup_entry, DOMAIN, LocaltuyaLight, flow_schema)
+_setup_entities = partial(_base_async_setup_entry, DOMAIN, LocaltuyaLight, flow_schema)
+
+
+async def async_setup_entry(hass, config_entry, async_add_entities):
+    """Set up a Tuya light platform entry and register the scene service."""
+    await _setup_entities(hass, config_entry, async_add_entities)
+    entity_platform.async_get_current_platform().async_register_entity_service(
+        "set_custom_scene",
+        {
+            # device-observed limit: one real device rejected a 9th stop
+            vol.Required("colors"): vol.All(
+                [vol.All([vol.Coerce(int)], vol.Length(min=3, max=3))],
+                vol.Length(min=1, max=8),
+            ),
+            vol.Optional("speed", default=50): vol.All(
+                vol.Coerce(int), vol.Range(min=0, max=100)
+            ),
+            vol.Optional("smooth", default=True): bool,
+        },
+        "async_set_custom_scene",
+    )
