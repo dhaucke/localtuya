@@ -292,14 +292,23 @@ class LocaltuyaLight(LocalTuyaEntity, LightEntity):
         if len(self.supported_color_modes) == 1:
             return next(iter(self.supported_color_modes))
 
-        if self.is_color_mode:
+        if self.is_color_mode and ColorMode.HS in self.supported_color_modes:
             return ColorMode.HS
-        if self.is_white_mode:
+        if self.is_white_mode and ColorMode.COLOR_TEMP in self.supported_color_modes:
             return ColorMode.COLOR_TEMP
-        if self._brightness:
+        if self._brightness and ColorMode.BRIGHTNESS in self.supported_color_modes:
             return ColorMode.BRIGHTNESS
+        if ColorMode.ONOFF in self.supported_color_modes:
+            return ColorMode.ONOFF
 
-        return ColorMode.ONOFF
+        # The device is in a mode this integration doesn't track separately
+        # (e.g. "scene"/"music" on DP 21) and none of the above matched - a
+        # value not present in supported_color_modes breaks the frontend
+        # light card entirely (blank more-info dialog), so fall back to
+        # whatever IS actually declared there instead of e.g. the BRIGHTNESS
+        # case above, which isn't in supported_color_modes for a
+        # color_temp+hs device and produced exactly that blank card.
+        return next(iter(self.supported_color_modes))
 
     @property
     def is_white_mode(self):
