@@ -340,11 +340,27 @@ class TuyaDevice(pytuya.TuyaListener, pytuya.ContextualLogger):
             self._dev_config_entry[CONF_FRIENDLY_NAME],
         )
 
+    def _apply_exchange_result(self, result):
+        """Feed a set_dp/set_dps result back into the entity status pipeline.
+
+        On v3.5 devices, MessageDispatcher._dispatch() can't match a reply
+        to our request by seqno (v3.5 doesn't echo it), so it hands us the
+        next message addressed to no one in particular - which is often
+        actually the device's own unsolicited status push confirming the
+        change, not a real command ack. Discarding it (as before) meant
+        that push never reached the entities, so HA never saw the change
+        unless a later, unrelated push happened to arrive.
+        """
+        if result and "dps" in result:
+            self.status_updated(result["dps"])
+
     async def set_dp(self, state, dp_index):
         """Change value of a DP of the Tuya device."""
         if self._interface is not None:
             try:
-                await self._interface.set_dp(state, dp_index)
+                self._apply_exchange_result(
+                    await self._interface.set_dp(state, dp_index)
+                )
             except Exception:  # pylint: disable=broad-except
                 self.exception("Failed to set DP %d to %s", dp_index, str(state))
         else:
@@ -356,7 +372,7 @@ class TuyaDevice(pytuya.TuyaListener, pytuya.ContextualLogger):
         """Change value of a DPs of the Tuya device."""
         if self._interface is not None:
             try:
-                await self._interface.set_dps(states)
+                self._apply_exchange_result(await self._interface.set_dps(states))
             except Exception:  # pylint: disable=broad-except
                 self.exception("Failed to set DPs %r", states)
         else:
