@@ -326,7 +326,8 @@ class LocaltuyaLight(LocalTuyaEntity, LightEntity):
         return color_mode is not None and color_mode == self._modes.music
 
     def __is_color_rgb_encoded(self):
-        return len(self.dps_conf(CONF_COLOR)) > 12
+        color = self.dps_conf(CONF_COLOR)
+        return color is not None and len(color) > 12
 
     def __find_scene_by_scene_data(self, data):
         return next(
