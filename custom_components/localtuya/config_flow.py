@@ -371,10 +371,15 @@ class LocaltuyaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def _create_entry(self, user_input):
         """Register new entry."""
-        # if self._async_current_entries():
-        #     return self.async_abort(reason="already_configured")
-
         await self.async_set_unique_id(user_input.get(CONF_USER_ID))
+        # Without this, a second "Add Integration" run with the same
+        # unique_id (e.g. two "Do not configure a Cloud API account" setups,
+        # which both get unique_id "") doesn't create a second hub or error
+        # out - Home Assistant's core flow manager silently treats it as an
+        # update of the EXISTING entry instead, and CONF_DEVICES below then
+        # overwrites that entry's real device list with an empty one. Live
+        # incident, 2026-09-04: wiped 7 already-configured devices this way.
+        self._abort_if_unique_id_configured()
         user_input[CONF_DEVICES] = {}
 
         return self.async_create_entry(
